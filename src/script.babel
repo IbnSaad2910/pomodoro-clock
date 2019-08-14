@@ -1,0 +1,94 @@
+const Header = () => <h1 className="pt-5 mt-5">Pomodoro Clock</h1>
+
+const SetTimer = ({ type, value, handleClick }) => (
+  <div id={`${type}-div`}>
+    <div id={`${type}-label`}>{`${type === "session" ? "Session" : "Break" } Length`}</div>
+    <div>
+      <a href="#" id={`${type}-decrement`} className="btn mx-1 btn-info btn-sm" role="button" onClick={() => handleClick(false, `${type}Value`)}><i class="fa fa-minus"></i></a>
+      <span id={`${type}-length`}>{ value }</span>
+      <a href="#" id={`${type}-increment`} className="btn mx-1 btn-info btn-sm" role="button" onClick={() => handleClick(true, `${type}Value`)}><i class="fa fa-plus"></i></a>
+    </div>
+  </div>
+)
+
+const Timer = ({ mode, time }) => (
+    <div id="timer" className="d-flex flex-column mb-2 justify-content-center align-items-center rounded-circle">
+    <span id="timer-label">{mode === "session" ? "Session" : "Break"}</span>
+      <h2 id="time-left">{time}</h2>
+    </div>
+)
+
+const Controls = ({ active, handleReset, handlePlayPause }) => (
+  <div id="controls" className="d-flex justify-content-center">
+    <a href="#" className="btn btn-info btn-lg" id="start_stop" onClick={handlePlayPause}>{ active ? <i className="fas fa-pause"></i> : <i className="fas fa-play"></i> }</a>
+      <a href="#" className="btn btn-info btn-lg" role="button" id="reset" onClick={handleReset}><i className="fas fa-history"></i></a>
+  </div>
+)
+
+class App extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      breakValue: 5,
+      sessionValue: 25,
+      mode: "session",
+      time: 25 * 60 * 1000,
+      active: false,
+      touched: false
+    }
+  }
+  
+  componentDidUpdate(prevProps, prevState) {
+    if (prevState.time === 0 && prevState.mode === "session") {
+      this.setState({ time: this.state.breakValue * 60 * 1000, mode: "break" });
+      this.audio.play();
+    }
+    if (prevState.time === 0 && prevState.mode === "break") {
+      this.setState({ time: this.state.sessionValue * 60 * 1000, mode: "session" });
+      this.audio.play();
+    }
+  }
+  
+  handleSetTimers = (inc, type) => {
+    if(this.state[type] === 60 && inc) return
+    if(this.state[type] === 1 && !inc) return
+    this.setState({ [type]: this.state[type] + (inc ? 1 : -1) });
+  }
+  
+  handleReset = () => {
+    this.setState({ breakValue: 5, sessionValue: 25, time: 25 * 60 * 1000, mode: "session", touched: false, active: false });
+    clearInterval(this.pomodoro);
+    this.audio.pause();
+    this.audio.currentTime = 0;
+  }
+  
+  handlePlayPause = () => {
+    if (this.state.active) {
+      this.setState({ active: false }, () => clearInterval(this.pomodoro))
+    } 
+    else {
+      if (!this.state.touched) {
+        this.setState({ time: this.state.sessionValue * 60 * 1000, active: true, touched: true }, () => this.pomodoro = setInterval(() => this.setState({ time: this.state.time - 1000 }) ,1000))
+      } else {
+        this.setState({ active: true, touched: true }, () => this.pomodoro = setInterval(() => this.setState({ time: this.state.time - 1000 }) ,1000));
+      }
+    }
+  }
+  
+  render() {
+    return (
+      <div className="text-center container">
+        <Header />
+        <SetTimer type="session" value={this.state.sessionValue} handleClick={this.handleSetTimers} />
+        <div id="timer-div" className="d-flex flex-column align-items-center my-5">
+          <Timer mode={this.state.mode} time={moment.utc(this.state.time).format("mm:ss")} />
+          <Controls active={this.state.active} handleReset={this.handleReset} handlePlayPause={this.handlePlayPause} />
+        </div>
+        <SetTimer type="break" value={this.state.breakValue} handleClick={this.handleSetTimers} />
+        <audio id="beep" src="https://s3-us-west-1.amazonaws.com/benjaminadk/Data+synth+beep+high+and+sweet.mp3" ref={el => this.audio = el}></audio>
+      </div>
+    )
+  }
+}
+
+ReactDOM.render(<App />, document.getElementById("root"));
